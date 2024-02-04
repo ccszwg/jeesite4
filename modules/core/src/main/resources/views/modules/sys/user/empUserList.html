@@ -48,12 +48,6 @@
 					</div>
 				</div>
 				<div class="form-group">
-					<label class="control-label">${text('手机')}：</label>
-					<div class="control-inline">
-						<#form:input path="mobile" maxlength="100" class="form-control width-90"/>
-					</div>
-				</div>
-				<div class="form-group">
 					<label class="control-label">${text('状态')}：</label>
 					<div class="control-inline width-90">
 						<#form:select path="status" dictType="sys_user_status" blankOption="true" class="form-control isQuick"/>
@@ -61,16 +55,22 @@
 				</div>
 				<!-- <div class="form-row"></div> -->
 				<div class="form-group">
-					<button type="submit" class="btn btn-primary btn-sm">${text('查询')}</button>
-					<button type="reset" class="btn btn-default btn-sm isQuick">${text('重置')}</button>
-					<button type="button" class="btn btn-default btn-sm btnFormMore">${text('更多')}<i class="fa fa-angle-double-down"></i></button>
+					<button type="submit" class="btn btn-primary btn-sm"><i class="glyphicon glyphicon-search"></i> ${text('查询')}</button>
+					<button type="reset" class="btn btn-default btn-sm isQuick"><i class="glyphicon glyphicon-repeat"></i> ${text('重置')}</button>
+					<button type="button" class="btn btn-default btn-sm btnFormMore"><i class="fa fa-angle-double-down"></i> ${text('更多')}</button>
 				</div>
 				<div class="form-more">
+					<div class="form-group">
+						<label class="control-label">${text('手机')}：</label>
+						<div class="control-inline">
+							<#form:input path="mobile" maxlength="100" class="form-control width-90"/>
+						</div>
+					</div>
 					<div class="form-group">
 						<label class="control-label">${text('机构')}：</label>
 						<div class="control-inline width-90">
 							<#form:treeselect id="office" title="${text('机构选择')}"
-									path="employee.office.officeCode" labelPath="employee.office.officeName" 
+									path="employee.office.officeCode" labelPath="employee.office.officeName"
 									url="${ctx}/sys/office/treeData?ctrlPermi=${ctrlPermi}"
 									btnClass="btn-sm" allowClear="true" canSelectRoot="true" canSelectParent="true"/>
 						</div>
@@ -79,7 +79,7 @@
 						<label class="control-label">${text('公司')}：</label>
 						<div class="control-inline width-90">
 							<#form:treeselect id="company" title="${text('公司选择')}"
-									path="employee.company.companyCode" labelPath="employee.company.companyName" 
+									path="employee.company.companyCode" labelPath="employee.company.companyName"
 									url="${ctx}/sys/company/treeData?ctrlPermi=${ctrlPermi}"
 									btnClass="btn-sm" allowClear="true" canSelectRoot="true" canSelectParent="true"/>
 						</div>
@@ -96,18 +96,20 @@
 							<#form:input path="phone" maxlength="100" class="form-control width-90"/>
 						</div>
 					</div>
-					<div class="form-group">
-						<label class="control-label">${text('岗位')}：</label>
-						<div class="control-inline width-90">
-							<#form:select name="employee.postCode" items="${postList}"
-								itemLabel="postName" itemValue="postCode" blankOption="true" class="form-control isQuick"/>
+					<div class="inline-block">
+						<div class="form-group">
+							<label class="control-label">${text('岗位')}：</label>
+							<div class="control-inline width-90">
+								<#form:select name="employee.postCode" items="${postList}"
+									itemLabel="postName" itemValue="postCode" blankOption="true" class="form-control isQuick"/>
+							</div>
 						</div>
-					</div>
-					<div class="form-group">
-						<label class="control-label">${text('角色')}：</label>
-						<div class="control-inline width-120">
-							<#form:select name="roleCode" items="${roleList}"
-								itemLabel="roleName" itemValue="roleCode" blankOption="true" class="form-control isQuick"/>
+						<div class="form-group">
+							<label class="control-label">${text('角色')}：</label>
+							<div class="control-inline width-90">
+								<#form:select name="roleCode" items="${roleList}"
+									itemLabel="roleName" itemValue="roleCode" blankOption="true" class="form-control isQuick"/>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -119,9 +121,9 @@
 </div>
 <% } %>
 <script>
-// 初始化DataGrid对象
+//# // 初始化DataGrid对象
 $('#dataGrid').dataGrid({
-	searchForm: $("#searchForm"),
+	searchForm: $('#searchForm'),
 	columnModel: [
 		{header:'${text("登录账号")}', name:'loginCode', index:'a.login_code', width:125, align:"center", frozen:true, fixed:true, formatter: function(val, obj, row, act){
 			return '<a href="${ctx}/sys/empUser/form?userCode='+row.userCode+'&op=edit" class="btnList" data-title="${text("编辑用户")}">'+(val||row.id)+'</a>';
@@ -135,50 +137,58 @@ $('#dataGrid').dataGrid({
 		{header:'${text("办公电话")}', name:'phone', index:'a.phone', width:120, align:"center"},
 		{header:'${text("更新时间")}', name:'updateDate', index:'a.update_date', width:125, align:"center", frozen:true},
 		{header:'${text("状态")}', name:'status', index:'a.status', width:60, align:"center", frozen:true, formatter: function(val, obj, row, act){
-			return js.getDictLabel(${@DictUtils.getDictListJson('sys_status')}, val, '未知', true);
+			return js.getDictLabel("#{@DictUtils.getDictListJson('sys_status')}", val, '未知', true);
 		}},
 		{header:'${text("操作")}', name:'actions', width:120, formatter: function(val, obj, row, act){
 			var actions = [];
-			//<% if(hasPermi('sys:empUser:edit')){ %>
+			//# if(hasPermi('sys:empUser:edit')){
 				actions.push('<a href="${ctx}/sys/empUser/form?userCode='+row.userCode+'&op=edit" class="btnList" title="${text("编辑用户")}"><i class="fa fa-pencil"></i></a>&nbsp;');
-			//<% } %>
-			//<% if(hasPermi('sys:empUser:updateStatus')){ %>
+			//# }
+			//# if(hasPermi('sys:empUser:updateStatus')){
 				if (row.status == Global.STATUS_NORMAL){
 					actions.push('<a href="${ctx}/sys/empUser/disable?userCode='+row.userCode+'" class="btnList" title="${text("停用用户")}" data-confirm="${text("确认要停用该用户吗？")}"><i class="glyphicon glyphicon-ban-circle"></i></a>&nbsp;');
-				}else if (row.status == Global.STATUS_DISABLE || row.status == Global.STATUS_FREEZE || row.status == Global.STATUS_AUDIT){
+				}else if (row.status == Global.STATUS_DISABLE || row.status == Global.STATUS_AUDIT){
 					actions.push('<a href="${ctx}/sys/empUser/enable?userCode='+row.userCode+'" class="btnList" title="${text("启用用户")}" data-confirm="${text("确认要启用该用户吗？")}"><i class="glyphicon glyphicon-ok-circle"></i></a>&nbsp;');
+				}else if (row.status == Global.STATUS_FREEZE){
+					actions.push('<a href="${ctx}/sys/empUser/enable?userCode='+row.userCode+'&freeze=true" class="btnList" title="${text("解冻用户")}" data-confirm="${text("确认要解冻该用户吗？")}"><i class="glyphicon glyphicon-ok-circle"></i></a>&nbsp;');
 				}
-			//<% } %>
-			//<% if(hasPermi('sys:empUser:edit')){ %>
+			//# }
+			//# if(hasPermi('sys:empUser:edit')){
 				actions.push('<a href="${ctx}/sys/empUser/delete?userCode='+row.userCode+'" class="btnList" title="${text("删除用户")}" data-confirm="${text("确认要删除该用户吗？")}"><i class="fa fa-trash-o"></i></a>&nbsp;');
-			//<% } %>
-			//<% if(hasPermi('sys:empUser:authRole,sys:empUser:authDataScope,sys:empUser:resetpwd', 'or')){ %>
+			//# }
+			//# if(hasPermi('sys:empUser:authRole,sys:empUser:authDataScope,sys:empUser:resetpwd', 'or')){
 				actions.push('<a href="javascript:" class="btnMore" title="${text("更多操作")}"><i class="fa fa-chevron-circle-right"></i></a>&nbsp;');
 				actions.push('<div class="moreItems">');
-				//<% if(hasPermi('sys:empUser:authRole')){ %>
+				//# if(hasPermi('sys:empUser:authRole')){
 					actions.push('<a href="${ctx}/sys/empUser/form?userCode='+row.userCode+'&op=auth" class="btn btn-default btn-xs btnList" title="${text("用户分配角色")}"><i class="fa fa-check-square-o"></i> ${text("分配角色")}</a>&nbsp;');
-				//<% } %>
-				//<% if(hasPermi('sys:empUser:authDataScope')){ %>
+				//# }
+				//# if(hasPermi('sys:empUser:authDataScope')){
 					actions.push('<a href="${ctx}/sys/empUser/formAuthDataScope?userCode='+row.userCode+'" class="btn btn-default btn-xs btnList" title="${text("用户分配数据权限")}"><i class="fa fa-check-circle-o"></i> ${text("数据权限")}</a>&nbsp;');
-				//<% } %>
-				//<% if(hasPermi('sys:empUser:resetpwd')){ %>
-					actions.push('<a href="${ctx}/sys/empUser/resetpwd?userCode='+row.userCode+'" class="btn btn-default btn-xs btnList" title="${text("用户密码重置")}" data-confirm="${text("确认要将该用户密码重置到初始状态吗？")}"><i class="fa fa-reply-all"></i> ${text("重置密码")}</a>&nbsp;');
-				//<% } %>
+				//# }
+				//# if(hasPermi('sys:empUser:resetpwd')){
+					actions.push('<a href="${ctx}/sys/empUser/resetpwd?userCode='+row.userCode+'" class="btn btn-default btn-xs btnList" title="${text("用户密码重置")}" data-confirm="${text("确认要将该用户密码重置到初始状态吗？")}"><i class="fa fa-key"></i> ${text("重置密码")}</a>&nbsp;');
+				//# }
+				//# if(hasPermi('sys:empUser:updateStatus')){
+				// 	if (row.status == Global.STATUS_NORMAL){
+				// 		actions.push('<a href="${ctx}/sys/empUser/disable?userCode='+row.userCode+'&freeze=true" class="btn btn-default btn-xs btnList" title="${text("冻结用户")}" data-confirm="${text("确认要冻结该用户吗？")}"><i class="glyphicon glyphicon-ban-circle"></i> ${text("冻结用户")}</a>&nbsp;');
+				// 	}
+				//# }
 				actions.push('</div>');
-			//<% } %>
+			//# }
 			return actions.join('');
 		}}
 	],
 	frozenCols: true,
-	// 加载成功后执行事件
+	//# // 加载成功后执行事件
 	ajaxSuccess: function(data){
-		
+
 	}
 });
 $('#btnExport').click(function(){
 	js.ajaxSubmitForm($('#searchForm'), {
-		url:'${ctx}/sys/empUser/exportData',
-		downloadFile:true
+		url: '${ctx}/sys/empUser/exportData',
+		clearParams: 'pageNo,pageSize',
+		downloadFile: true
 	});
 });
 $('#btnImport').click(function(){
@@ -214,6 +224,7 @@ $('#btnImport').click(function(){
 		}
 	});
 });
+// emitter.on('emp-user-list-page', page);
 </script>
 <script id="importTpl" type="text/template">//<!--
 <form id="inputForm" action="${ctx}/sys/empUser/importData" method="post" enctype="multipart/form-data"

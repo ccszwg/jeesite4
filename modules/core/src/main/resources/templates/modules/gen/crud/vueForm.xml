@@ -6,17 +6,18 @@
 	<filePath>${frontDir}/src/views/${urlPrefix}</filePath>
 	<fileName>form.vue</fileName>
 	<content><![CDATA[
+<% var modalOrDrawer = @StringUtils.contains(table.tplCategory, '_modal') ? 'Modal' : 'Drawer'; %>
 <!--
  * Copyright (c) 2013-Now http://jeesite.com All rights reserved.
  * No deletion without permission, or be held responsible to law.
  * @author ${functionAuthor}
 -->
 <template>
-  <BasicDrawer
+  <Basic${modalOrDrawer}
     v-bind="$attrs"
     :showFooter="true"
     :okAuth="'${permissionPrefix}:edit'"
-    @register="registerDrawer"
+    @register="register${modalOrDrawer}"
     @ok="handleSubmit"
     width="60%"
   >
@@ -50,15 +51,17 @@
         bpmEntityKey="id"
         formKey="${table.optionMap['bpmFormKey']}"
         completeText="提交"
+        :completeModal="true"
         :loading="loadingRef"
-        :auth="'oa:oaLeave:edit'"
+        :auth="'${permissionPrefix}:edit'"
+        @validate="handleValidate"
         @complete="handleSubmit"
         @success="handleSuccess"
-        @close="closeDrawer"
+        @close="close${modalOrDrawer}"
       />
     </template>
     <% } %>
-  </BasicDrawer>
+  </Basic${modalOrDrawer}>
 </template>
 <script lang="ts" setup name="${compNamePrefix}Form">
   import { ref, unref, computed } from 'vue';
@@ -70,7 +73,7 @@
 <% if (table.childList.~size > 0){ %>
   import { BasicTable, useTable } from '/@/components/Table';
 <% } %>
-  import { BasicDrawer, useDrawerInner } from '/@/components/Drawer';
+  import { Basic${modalOrDrawer}, use${modalOrDrawer}Inner } from '/@/components/${modalOrDrawer}';
   import { ${ClassName}, ${className}Save, ${className}Form<% if(table.isTreeEntity){ %>, ${className}TreeData<% } %> } from '/@/api/${moduleName}${isNotEmpty(subModuleName)?'/'+subModuleName:''}/${className}';
 <%
 var userselectExists = false;
@@ -104,14 +107,14 @@ for(c in table.columnList){
   const { showMessage } = useMessage();
   const { meta } = unref(router.currentRoute);
   const record = ref<${ClassName}>({} as ${ClassName});
+<% if(toBoolean(table.optionMap['isBpmForm'])){ %>
+  const loadingRef = ref(false);
+<% } %>
+
   const getTitle = computed(() => ({
     icon: meta.icon || 'ant-design:book-outlined',
     value: record.value.isNewRecord ? t('新增${functionNameSimple}') : t('编辑${functionNameSimple}'),
   }));
-<% if(toBoolean(table.optionMap['isBpmForm'])){ %>
-
-  const loadingRef = ref(false);
-<% } %>
 
   const inputFormSchemas: FormSchema[] = [
   <% if(table.isTreeEntity){ %>
@@ -340,6 +343,52 @@ for (c in table.columnList){
     },
 <%
   }
+  if(false && toBoolean(table.optionMap['isBpmForm'])){
+%>
+    {
+      label: t('审批意见'),
+      field: 'bpm.comment',
+      component: 'InputTextArea',
+      componentProps: {
+        maxlength: 500,
+      },
+      colProps: { lg: 24, md: 24 },
+      show: () => record.value.bpm.status != '2',
+    },
+    {
+      label: t('下一步流程信息'),
+      field: 'nextTaskInfo',
+      component: 'FormGroup',
+      colProps: { lg: 24, md: 24 },
+    },
+    {
+      label: t('要求完成时间'),
+      field: 'bpm.dueDate',
+      component: 'DatePicker',
+      componentProps: {
+        format: 'YYYY-MM-DD HH:mm',
+        showTime: { format: 'HH:mm' },
+      },
+    },
+    {
+      label: t('任务优先级'),
+      field: 'bpm.priority',
+      component: 'Select',
+      componentProps: {
+        dictType: 'bpm_task_priority',
+        allowClear: true,
+      },
+    },
+    {
+      label: t('下一步处理人'),
+      field: 'bpm.nextUserCodes',
+      component: 'ListSelect',
+      componentProps: {
+        selectType: 'empUserSelect',
+      },
+    },
+<%
+  }
 %>
   ];
 <%
@@ -438,7 +487,7 @@ for (c in table.columnList){
         editComponent: 'InputNumber',
         editDefaultValue: '30',
         <% }else{ %>
-        editComponent: 'Input',
+        editComponent: '${c.showType == 'input' ? 'Input' : 'InputTextArea'}',
         <% } %>
         <% if (c.dataLength != '0'){ %>
         editComponentProps: {
@@ -547,8 +596,8 @@ for (c in table.columnList){
   }
 <% } %>
 
-  const [registerDrawer, { setDrawerProps, closeDrawer }] = useDrawerInner(async (data) => {
-    setDrawerProps({ loading: true });
+  const [register${modalOrDrawer}, { set${modalOrDrawer}Props, close${modalOrDrawer} }] = use${modalOrDrawer}Inner(async (data) => {
+    set${modalOrDrawer}Props({ loading: true });
     await resetFields();
     const res = await ${className}Form(data);
     record.value = (res.${className} || {}) as ${ClassName};
@@ -570,23 +619,39 @@ for (c in table.columnList){
     } %>
     ]);
   <% } %>
-    setDrawerProps({ loading: false });
+    set${modalOrDrawer}Props({ loading: false });
   });
+  <% if(toBoolean(table.optionMap['isBpmForm'])){ %>
 
-  async function handleSubmit() {
+  async function handleValidate(_event: any, formData: any) {
     try {
       const data = await validate();
-      <% if(toBoolean(table.optionMap['isBpmForm'])){ %>
-      data.bpm = record.value.bpm; // 流程信息
-      data.status = record.value.status; // 提交状态
+      formData(true, data); // 将表单数据传递给 BpmButton
+    } catch (error: any) {
+      if (error && error.errorFields) {
+        showMessage(t('common.validateError'));
+      }
+      console.log('error', error);
+    }
+  }
+  <% } %>
+
+  async function handleSubmit(<% if(toBoolean(table.optionMap['isBpmForm'])){ %>event: any<% } %>) {
+    try {
+    <% if(toBoolean(table.optionMap['isBpmForm'])){ %>
       loadingRef.value = true;
-      <% } %>
-      setDrawerProps({ confirmLoading: true });
+      const data = event?.formData || (await validate()); // 接受 BpmButton 传递过来的表单数据
+      data.bpm = Object.assign(data.bpm || {}, record.value.bpm); // 流程信息
+      data.status = record.value.status; // 提交状态
+    <% } else { %>
+      const data = await validate();
+    <% } %>
+      set${modalOrDrawer}Props({ confirmLoading: true });
       const params: any = {
         isNewRecord: record.value.isNewRecord,
   <%
   for (c in table.columnList){
-  if (c.isPk == '1' || c.showType == 'hidden'){ %>
+    if (c.isPk == '1' || c.showType == 'hidden'){ %>
         ${c.attrName}: record.value.${c.attrName},
       <% 
     }
@@ -596,10 +661,13 @@ for (c in table.columnList){
     <% for (child in table.childList){ %>
       data.${@StringUtils.uncap(child.className)}List = await get${child.className}List();
     <% } %>
+    <% if(table.isTreeEntity){ %>
+      data.oldParentCode = record.value.parentCode;
+    <% } %>
       // console.log('submit', params, data, record);
       const res = await ${className}Save(params, data);
       showMessage(res.message);
-      setTimeout(closeDrawer);
+      setTimeout(close${modalOrDrawer});
       emit('success', data);
     } catch (error: any) {
       if (error && error.errorFields) {
@@ -610,7 +678,7 @@ for (c in table.columnList){
       <% if(toBoolean(table.optionMap['isBpmForm'])){ %>
       loadingRef.value = false;
       <% } %>
-      setDrawerProps({ confirmLoading: false });
+      set${modalOrDrawer}Props({ confirmLoading: false });
     }
   }
   <% if(toBoolean(table.optionMap['isBpmForm'])){ %>
