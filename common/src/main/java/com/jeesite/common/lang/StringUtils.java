@@ -26,6 +26,7 @@ public class StringUtils extends org.apache.commons.lang3.StringUtils {
 	public static final String COLON = ":";
 	public static final String TILDE = "~";
 	public static final String UNDERLINE = "_";
+	public static final String MINUS = "-";
 
 	/**
 	 * 分隔字符串（逗号分隔）
@@ -284,7 +285,7 @@ public class StringUtils extends org.apache.commons.lang3.StringUtils {
         boolean upperCase = false;
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
-            if (c == UNDERLINE.charAt(0)) {
+            if (c == UNDERLINE.charAt(0) || c == MINUS.charAt(0)) {
                 upperCase = i != 1; // 不允许第二个字符是大写
             } else if (upperCase) {
                 sb.append(Character.toUpperCase(c));
@@ -398,8 +399,8 @@ public class StringUtils extends org.apache.commons.lang3.StringUtils {
 	/**
 	 * 获取树节点名字
 	 * @param isShowCode 是否显示编码<br>
-	 * 		true or 1：显示在左侧：(code)name<br>
-	 * 		2：显示在右侧：name(code)<br>
+	 * 		true or 1：显示在左侧：(code) name<br>
+	 * 		2：显示在右侧：name (code)<br>
 	 * 		false or null：不显示编码：name
 	 * @param code 编码
 	 * @param name 名称
@@ -409,9 +410,9 @@ public class StringUtils extends org.apache.commons.lang3.StringUtils {
 		if ("true".equals(isShowCode) || "1".equals(isShowCode)) {
 			return "(" + code + ") " + StringUtils.replace(name, SPACE, EMPTY);
 		} else if ("2".equals(isShowCode)) {
-			return name/*StringUtils.replace(name, " ", "")*/ + " (" + code + ")";
+			return defaultIfBlank(name, EMPTY) + "(" + code + ")";
 		} else {
-			return name/*StringUtils.replace(name, " ", "")*/;
+			return name;
 		}
 	}
 	

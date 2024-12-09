@@ -14,15 +14,11 @@ import com.jeesite.common.lang.StringUtils;
 import com.jeesite.common.network.IpUtils;
 import com.jeesite.common.shiro.authc.FormToken;
 import com.jeesite.common.shiro.realm.BaseAuthorizingRealm;
+import com.jeesite.common.utils.SpringUtils;
 import com.jeesite.common.web.CookieUtils;
 import com.jeesite.common.web.http.ServletUtils;
-import com.jeesite.modules.sys.entity.Log;
-import com.jeesite.modules.sys.entity.Role;
-import com.jeesite.modules.sys.entity.User;
-import com.jeesite.modules.sys.utils.CorpUtils;
-import com.jeesite.modules.sys.utils.LogUtils;
-import com.jeesite.modules.sys.utils.UserUtils;
-import com.jeesite.modules.sys.utils.ValidCodeUtils;
+import com.jeesite.modules.sys.entity.*;
+import com.jeesite.modules.sys.utils.*;
 import org.apache.shiro.authc.AuthenticationException;
 import org.apache.shiro.authc.AuthenticationToken;
 import org.apache.shiro.authc.IncorrectCredentialsException;
@@ -31,7 +27,6 @@ import org.apache.shiro.authz.UnauthorizedException;
 import org.apache.shiro.session.Session;
 import org.apache.shiro.subject.Subject;
 import org.apache.shiro.web.servlet.Cookie;
-import org.apache.shiro.web.servlet.Cookie.SameSiteOptions;
 import org.apache.shiro.web.servlet.SimpleCookie;
 import org.apache.shiro.web.util.WebUtils;
 import org.slf4j.Logger;
@@ -60,23 +55,21 @@ public class FormFilter extends org.apache.shiro.web.filter.authc.FormAuthentica
     public static final String LOGIN_PARAM = "__login";							// 支持GET方式登录的参数
 	
 	private static final Logger logger = LoggerFactory.getLogger(FormFilter.class);
+
 	private static FormFilter instance;
+	private static Cookie sessionIdCookie;
+	private static Cookie rememberUserCodeCookie;
 
 	private BaseAuthorizingRealm authorizingRealm;
-	private Cookie rememberUserCodeCookie; 	// 记住用户名Cookie
-	
+
 	/**
 	 * 构造方法
 	 */
 	public FormFilter() {
 		super();
-		rememberUserCodeCookie = new SimpleCookie();
+		sessionIdCookie = SpringUtils.getBean("sessionIdCookie");
+		rememberUserCodeCookie = new SimpleCookie(sessionIdCookie);
 		rememberUserCodeCookie.setName(REMEMBER_USERCODE_PARAM);
-		rememberUserCodeCookie.setPath(Global.getProperty("session.sessionIdCookiePath"));
-		rememberUserCodeCookie.setSecure(Global.getPropertyToBoolean("session.sessionIdCookieSecure", "false"));
-		rememberUserCodeCookie.setHttpOnly(Global.getPropertyToBoolean("session.sessionIdCookieHttpOnly", "true"));
-		String sameSite = Global.getProperty("session.sessionIdCookieSameSite", "Lax"); // Null、None、Lax、Strict
-		rememberUserCodeCookie.setSameSite(!"Null".equalsIgnoreCase(sameSite) ? SameSiteOptions.valueOf(StringUtils.upperCase(sameSite)) : null);
 		rememberUserCodeCookie.setMaxAge(Cookie.ONE_YEAR);
         instance = this;
 	}
@@ -200,14 +193,6 @@ public class FormFilter extends org.apache.shiro.web.filter.authc.FormAuthentica
 	protected boolean isAccessAllowed(ServletRequest request, ServletResponse response, Object mappedValue) {
 		return (!isLoginRequest(request, response) && isPermissive(mappedValue)); // 不验证登录状态，只验证登录请求
 	}
-	
-	/**
-	 * 跳转登录页时，跳转到默认首页
-	 */
-	@Override
-	protected void redirectToLogin(ServletRequest request, ServletResponse response) throws IOException {
-		PermissionsFilter.redirectToDefaultPath(request, response);
-	}
 
 	/**
 	 * 地址访问接入验证
@@ -255,6 +240,14 @@ public class FormFilter extends org.apache.shiro.web.filter.authc.FormAuthentica
 		boolean isLogin = WebUtils.isTrue(request, LOGIN_PARAM);
 		return super.isLoginSubmission(request, response) || isLogin;
 	}
+
+	/**
+	 * 跳转登录页时，跳转到默认首页
+	 */
+	@Override
+	protected void redirectToLogin(ServletRequest request, ServletResponse response) throws IOException {
+		PermissionsFilter.redirectToDefaultPath(request, response);
+	}
 	
 	/**
 	 * 执行登录方法
@@ -263,21 +256,19 @@ public class FormFilter extends org.apache.shiro.web.filter.authc.FormAuthentica
 	protected boolean executeLogin(ServletRequest request, ServletResponse response) throws Exception {
 		// 是否在登录后生成新的Session（默认false）
 		if (Global.getPropertyToBoolean("shiro.isGenerateNewSessionAfterLogin", "false")){
-			String[] keys = new String[] {ValidCodeUtils.VALID_CODE};
-			Map<String, Object> map = MapUtils.newHashMap();
+			String[] keys = new String[] { ValidCodeUtils.VALID_CODE };
+			Map<String, Object> attrMap = MapUtils.newHashMap();
 			final Session sessionOld = UserUtils.getSession();
 			for (String key : keys) {
 				Object value = sessionOld.getAttribute(key);
 				if (value != null) {
-					map.put(key, value);
+					attrMap.put(key, value);
 				}
 			}
 			UserUtils.getSubject().logout();
 			// 恢复生成新的Session之前的Session数据
 			final Session sessionNew = UserUtils.getSession();
-			map.forEach((key, value) -> {
-				sessionNew.setAttribute(key, value);
-			});
+			attrMap.forEach(sessionNew::setAttribute);
 		}
 		return super.executeLogin(request, response);
 	}
@@ -302,10 +293,10 @@ public class FormFilter extends org.apache.shiro.web.filter.authc.FormAuthentica
 		HttpServletRequest request = (HttpServletRequest)servletRequest;
 		// 登录成功后初始化授权信息并处理登录后的操作
 		authorizingRealm.onLoginSuccess(UserUtils.getLoginInfo(), request);
-		// 跳转到登录成功页面
-		String successUrl = getSuccessUrl(); // shiro.successUrl in application.yml
-		if (StringUtils.contains((request).getRequestURI(), "/oauth2/callback/")) {
-			successUrl = Global.getConfig("oauth2.successUrl", successUrl);
+		// 跳转到登录成功页面，若未指定则获取默认 shiro.successUrl in application.yml
+		String successUrl = (String)request.getAttribute("__url");
+		if (StringUtils.isBlank(successUrl)) {
+			successUrl = getSuccessUrl();
 		}
 		ServletUtils.redirectUrl(request, (HttpServletResponse)response, successUrl);
 		return false;
@@ -361,20 +352,9 @@ public class FormFilter extends org.apache.shiro.web.filter.authc.FormAuthentica
 		// 是否显示验证码
 		data.put("isValidCodeLogin", Global.getConfigToInteger("sys.login.failedNumAfterValidCode", "200") == 0);
 
-		//获取当前会话对象
-		Session session = UserUtils.getSession();
-		data.put("sessionid", (String)session.getId());
-		
-		// 如果登录设置了语言，则切换语言
-		if (paramMap.get("lang") != null){
-			Global.setLang((String)paramMap.get("lang"), request, response);
-		}
-		
+		// 设置公共结果数据
+		setCommonData(request, response, data, paramMap);
 		data.put("result", "login");
-		data.put("demoMode", Global.isDemoMode());
-		data.put("useCorpModel", Global.isUseCorpModel()
-				&& Global.getConfigToBoolean("user.loginCodeCorpUnique", "false"));
-		data.put("title", Global.getProperty("productName"));
 		return data;
 	}
 
@@ -415,30 +395,50 @@ public class FormFilter extends org.apache.shiro.web.filter.authc.FormAuthentica
 		String corpCode = (String)paramMap.get("corpCode");
 		User user = UserUtils.getByLoginCode(username, corpCode);
 		LogUtils.saveLog(user, request, "登录失败", Log.TYPE_LOGIN_LOGOUT);
-		
-		//获取当前会话对象
-		Session session = UserUtils.getSession();
-		data.put("sessionid", (String)session.getId());
-		
-		// 如果登录设置了语言，则切换语言
+
+		// 设置公共结果数据
+		setCommonData(request, response, data, paramMap);
+		data.put("result", Global.FALSE);
+		return data;
+	}
+
+	/**
+	 * 设置公共数据
+	 * @author ThinkGem
+	 */
+	private static void setCommonData(HttpServletRequest request, HttpServletResponse response,
+									  Map<String, Object> data, Map<String, Object> paramMap) {
+		if (ServletUtils.isAjaxRequest(request)) {
+			Session session = UserUtils.getSession();
+			data.put("sessionid", session.getId());
+			Cookie cookie = new SimpleCookie(sessionIdCookie);
+			cookie.setValue((String)session.getId());
+			cookie.saveTo(request, response);
+		}
 		if (paramMap.get("lang") != null){
 			Global.setLang((String)paramMap.get("lang"), request, response);
 		}
-		
-		data.put("result", Global.FALSE);
 		data.put("demoMode", Global.isDemoMode());
-		data.put("useCorpModel", Global.isUseCorpModel()
-				&& Global.getConfigToBoolean("user.loginCodeCorpUnique", "false"));
+		data.put("useCorpModel", Global.isUseCorpModel());
+		data.put("loginCodeCorpUnique", Global.getConfigToBoolean("user.loginCodeCorpUnique", "false"));
 		data.put("title", Global.getProperty("productName"));
-		return data;
+		data.put("company", Global.getProperty("companyName"));
+		data.put("version", Global.getProperty("productVersion"));
+		data.put("year", Global.getProperty("copyrightYear"));
 	}
 
 	/**
 	 * 获取登录页面数据
 	 * @author ThinkGem
 	 */
-	public static Map<String, Object> getLoginSuccessData(User user, Session session) {
+	public static Map<String, Object> getLoginSuccessData(HttpServletRequest request, HttpServletResponse response,
+														  User user, Session session) {
 		Map<String, Object> data = MapUtils.newHashMap();
+		if (ServletUtils.isAjaxRequest(request)) {
+			Cookie cookie = new SimpleCookie(sessionIdCookie);
+			cookie.setValue((String)session.getId());
+			cookie.saveTo(request, response);
+		}
 		data.put("user", user); // 设置当前用户信息
 		data.put("demoMode", Global.isDemoMode());
 		data.put("useCorpModel", Global.isUseCorpModel());
@@ -447,7 +447,11 @@ public class FormFilter extends org.apache.shiro.web.filter.authc.FormAuthentica
 		data.put("msgEnabled", Global.getPropertyToBoolean("msg.enabled", "false"));
 		data.put("sysCode", session.getAttribute("sysCode"));
 		data.put("roleCode", session.getAttribute("roleCode"));
+		data.put("postCode", session.getAttribute("postCode"));
 		data.put("title", Global.getProperty("productName"));
+		data.put("company", Global.getProperty("companyName"));
+		data.put("version", Global.getProperty("productVersion"));
+		data.put("year", Global.getProperty("copyrightYear"));
 		data.put("lang", Global.getLang());
 		List<Map<String, Object>> roleList = ListUtils.newArrayList();
 		String desktopUrl = null;
@@ -463,6 +467,21 @@ public class FormFilter extends org.apache.shiro.web.filter.authc.FormAuthentica
 			}
 		}
 		data.put("roleList", roleList);
+		List<Map<String, Object>> postList = ListUtils.newArrayList();
+		if (Global.getConfigToBoolean("user.postRolePermi", "false")
+				&& User.USER_TYPE_EMPLOYEE.equals(user.getUserType())) {
+			Employee employee = user.getRefObj();
+			for (EmployeePost ep : EmpUtils.getEmployeePostList(employee.getEmpCode())){
+				Post post = ep.getPost();
+				if (post != null) {
+					Map<String, Object> postMap = MapUtils.newHashMap();
+					postMap.put("postCode", post.getPostCode());
+					postMap.put("postName", post.getPostName());
+					postList.add(postMap);
+				}
+			}
+		}
+		data.put("postList", postList);
 		data.put("desktopUrl", desktopUrl != null ? desktopUrl : Global.getConfig("sys.index.desktopUrl"));
 		return data;
 	}

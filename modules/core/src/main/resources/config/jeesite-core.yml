@@ -31,6 +31,10 @@ jdbc:
     # 连接超时参数，单位毫秒 （v5.5.2+）
     connectTimeout: ~
     socketTimeout: ~
+
+    # 查询超时时间，事务超时时间 （v5.7.1+）
+    queryTimeout: ~
+    transactionQueryTimeout: ~
     
     # 从池中取出连接前进行检验，如果检验失败，则从池中去除连接并尝试取出另一个（4.0.6+）
     testOnBorrow: false
@@ -51,7 +55,7 @@ jdbc:
     removeAbandoned: false
     removeAbandonedTimeout: 2100
 
-    # Oracle 下会自动开启 PSCache，并指定每个连接上 PSCache 大小。若不指定，则与 maxActive 相同（4.1.5+）
+    # 是否缓存 PreparedStatement 对象的最大数量（4.1.5+）
     maxPoolPreparedStatementPerConnectionSize: ~
     
     # 设置连接属性，可获取到表的 remark (备注)
@@ -115,6 +119,15 @@ adminPath: /a
 # 前端基础路径
 frontPath: /f
 
+# 加密设置（v5.8.1）
+encrypt:
+  # 默认秘钥，可通过 AesUtils.genKeyString() 生成新秘钥 Hex 编码
+  defaultKey: 9f58a20946b47e190003ec716c1c457d
+  # 是否使用国密 SM 算法（SHA-1 替换为 SM3、AES 替换为 SM4）
+  smAlgorithm: false
+  # 对称或非对称加密是否使用 Base64 存储，默认 Hex 存储
+  storeBase64: false
+
 # 分页相关
 page:
   
@@ -139,6 +152,9 @@ user:
   
   # 二级管理员的控制权限类型（1拥有的权限 2管理的权限，管理功能包括：用户管理、组织机构、公司管理等）（v4.1.5+）
   adminCtrlPermi: 2
+
+  # 是否启用岗位角色，开启后将 用户->岗位->关联角色，纳入菜单和权限管理
+  postRolePermi: false
   
   # 多租户模式（SAAS模式）（专业版）
   useCorpModel: false
@@ -330,6 +346,12 @@ gen:
 # 系统监控
 state:
   enabled: true
+  # 服务器监控
+  server: true
+  # 缓存监控
+  cache: true
+  # 数据监控
+  druid: true
 
 #======================================#
 #========= Framework settings =========#
@@ -406,7 +428,7 @@ shiro:
   # 允许跨域访问时 CORS，可以获取和返回的方法和请求头
   #accessControlAllowMethods: GET, POST, OPTIONS
   #accessControlAllowHeaders: content-type, x-requested-with, x-ajax, x-token, x-remember
-  #accessControlExposeHeaders: x-remember
+  #accessControlExposeHeaders: x-token, x-remember
   
   # 是否允许接收跨域的Cookie凭证数据 CORS
   #accessControlAllowCredentials: false
@@ -420,8 +442,8 @@ shiro:
   # 是否在登录后生成新的Session（默认false）
   isGenerateNewSessionAfterLogin: false
   
-  # 内部系统访问过滤器，可设置多个允许的内部系统IP地址串，多个用逗号隔开
-  innerFilterAllowRemoteAddrs: 127.0.0.1
+  # 内部系统访问过滤器，可设置多个允许的内部系统IP地址串，多个用逗号隔开，完整的IP使用“]”符号结尾
+  innerFilterAllowRemoteAddrs: 127.0.0.1]
   
   # URI 权限过滤器定义（自定义添加参数时，请不要移除 ${adminPath}/** = user，否则会导致权限异常）
   # 提示：填写过滤规则，请注意先后顺序，从上到下，先匹配先受用规则，匹配成功后不再继续匹配。
@@ -590,6 +612,14 @@ web:
   ajaxParamName: __ajax
   ajaxHeaderName: x-ajax
 
+  # 是否默认对结果进行统一包装为：{ code: 200, msg: "", data: {} | [] }（v5.8.1）
+  # 注意：如果设置为 true 会对前端页面访问产生影响，暂时只为系统纯接口提供开启使用。
+  isDefaultResult: false
+
+  # 开启对接口结果数据进行包装的请求参数名和请求头名（v5.8.1）
+  resultParamName: __data
+  resultHeaderName: x-header
+
   # MVC 视图相关
   view:
     
@@ -639,7 +669,7 @@ web:
       excludePathPatterns: ~
         
   # 静态文件后缀，过滤静态文件，以提高访问性能。
-  staticFile: .css,.js,.map,.png,.jpg,.gif,.jpeg,.bmp,.ico,.swf,.psd,.htc,.crx,.xpi,.exe,.ipa,.apk,.otf,.eot,.svg,.ttf,.woff,.woff2
+  staticFile: .css,.js,.map,.png,.jpg,.gif,.jpeg,.webp,.bmp,.ico,.swf,.psd,.htc,.crx,.xpi,.exe,.ipa,.apk,.otf,.eot,.svg,.ttf,.woff,.woff2
 
   # 静态资源缓存周期 Cache-Control，单位秒，1年
   staticCachePeriod: 31536000
@@ -694,14 +724,14 @@ file:
   # 文件上传根路径，设置路径中不允许包含“userfiles”，在指定目录中系统会自动创建userfiles目录，如果不设置默认为contextPath路径
   #baseDir: D:/jeesite
   
-  # 上传文件的相对路径（支持：yyyy, MM, dd, HH, mm, ss, E）
+  # 上传文件的相对路径（支持：yyyy、MM、dd、HH、mm、ss、E、bizType、corpCode、userCode、userType、userCache中的key）
   uploadPath: '{yyyy}{MM}/'
   
   # 上传单个文件最大字节（500M），在这之上还有 > Tomcat限制 > Nginx限制，等，此设置会覆盖 spring.http.multipart.maxFileSize 设置
   maxFileSize: '500*1024*1024'
   
   # 设置允许上传的文件后缀（全局设置）
-  imageAllowSuffixes: .gif,.bmp,.jpeg,.jpg,.ico,.png,.tif,.tiff,
+  imageAllowSuffixes: .gif,.bmp,.jpeg,.jpg,.ico,.png,.tif,.tiff,webp,
   mediaAllowSuffixes: .flv,.swf,.mkv,webm,.mid,.mov,.mp3,.mp4,.m4v,.mpc,.mpeg,.mpg,.swf,.wav,.wma,.wmv,.avi,.rm,.rmi,.rmvb,.aiff,.asf,.ogg,.ogv,
   fileAllowSuffixes: .doc,.docx,.rtf,.xls,.xlsx,.csv,.ppt,.pptx,.pdf,.vsd,.txt,.md,.xml,.rar,.zip,.7z,.tar,.tgz,.jar,.gz,.gzip,.bz2,.cab,.iso,.ipa,.apk,
   

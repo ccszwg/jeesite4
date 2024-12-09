@@ -17,14 +17,14 @@
 			</div>
 		</div>
 		<div class="box-body">
-			<#form:form id="searchForm" model="${company}" action="${ctx}/sys/company/listData" method="post" class="form-inline hide"
+			<#form:form id="searchForm" model="${company}" action="${ctx}/sys/company/listData" method="post" class="form-inline "
 					data-page-no="${parameter.pageNo}" data-page-size="${parameter.pageSize}" data-order-by="${parameter.orderBy}">
 				<#form:hidden name="ctrlPermi" value="${ctrlPermi}"/>
 				<#form:hidden path="companyCode" class="isReset"/>
 				<div class="form-group">
 					<label class="control-label">${text('公司代码')}：</label>
 					<div class="control-inline">
-						<#form:input path="viewCode" maxlength="100" class="form-control width-90"/>
+						<#form:input path="viewCode_like" maxlength="100" class="form-control width-90"/>
 					</div>
 				</div>
 				<div class="form-group">

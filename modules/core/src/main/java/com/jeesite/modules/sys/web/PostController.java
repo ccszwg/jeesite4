@@ -69,7 +69,7 @@ public class PostController extends BaseController {
 	@RequestMapping(value = "form")
 	public String form(Post post, Model model) {
 		if(post.getIsNewRecord()){
-			post.setPostSort((int)postService.findCount(post) * 10);
+			post.setPostSort(((int)postService.findCount(post) + 1) * 10);
 		}
 		// 查询岗位所关联的角色信息
 		if (StringUtils.isNotBlank(post.getPostCode())){
@@ -79,7 +79,7 @@ public class PostController extends BaseController {
 			List<String> roleCodes = ListUtils.newArrayList();
 			List<String> roleNames = ListUtils.newArrayList();
 			postService.findPostRoleList(where).forEach(e -> {
-				if (e.getRole() != null) {
+				if (e.getRole() != null && PostRole.STATUS_NORMAL.equals(e.getRole().getStatus())) {
 					roleCodes.add(e.getRoleCode());
 					roleNames.add(e.getRole().getRoleName());
 				}
@@ -94,8 +94,9 @@ public class PostController extends BaseController {
 	@RequiresPermissions("sys:post:edit")
 	@PostMapping(value = "save")
 	@ResponseBody
-	public String save(@Validated Post post, String oldRoleName) {
-		if (!"true".equals(checkPostName(oldRoleName, post.getPostName()))) {
+	public String save(@Validated Post post, HttpServletRequest request) {
+		Post old = super.getWebDataBinderSource(request);
+		if (!"true".equals(checkPostName(old != null ? old.getPostName() : "", post.getPostName()))) {
 			return renderResult(Global.FALSE, text("保存岗位失败，岗位名称''{0}''已存在", post.getPostName()));
 		}
 		postService.save(post);

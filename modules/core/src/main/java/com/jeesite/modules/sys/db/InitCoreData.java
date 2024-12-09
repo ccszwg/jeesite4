@@ -7,6 +7,8 @@ package com.jeesite.modules.sys.db;
 import com.jeesite.common.config.Global;
 import com.jeesite.common.idgen.IdGen;
 import com.jeesite.common.tests.BaseInitDataTests;
+import com.jeesite.modules.biz.entity.BizCategory;
+import com.jeesite.modules.biz.service.BizCategoryService;
 import com.jeesite.modules.gen.utils.GenUtils;
 import com.jeesite.modules.job.dao.JobDao;
 import com.jeesite.modules.job.entity.JobEntity;
@@ -50,6 +52,7 @@ public class InitCoreData extends BaseInitDataTests {
 		this.initPost();
 		this.initEmpUser();
 		this.initJob();
+		this.initBizCategory();
 		return true;
 	}
 	
@@ -345,10 +348,26 @@ public class InitCoreData extends BaseInitDataTests {
 		job.setStatus(JobEntity.STATUS_PAUSED);
 		jobDao.insert(job);
 	}
+
+	@Autowired
+	private BizCategoryService bizCategoryService;
+	public void initBizCategory() throws Exception{
+//		clearTable(BizCategory.class);
+		initExcelData(BizCategory.class, params -> {
+			String action = (String)params[0];
+			if("save".equals(action)){
+				BizCategory entity = (BizCategory)params[1];
+				entity.setIsNewRecord(true);
+				bizCategoryService.save(entity);
+				return null;
+			}
+			return null;
+		});
+	}
 	
 	@Override
 	public int getPhase() {
-		return Integer.MIN_VALUE + 1000;  // core 1000, other 2000, upgrade 10000
+		return Integer.MIN_VALUE + 1000;  // core 1000, other 5000, upgrade 10000
 	}
 	
 }

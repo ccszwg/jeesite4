@@ -81,6 +81,14 @@ public class EmpUserServiceSupport extends CrudService<EmpUserDao, EmpUser>
 	}
 
 	/**
+	 * 查询数据
+	 */
+	@Override
+	public List<EmpUser> findList(EmpUser entity) {
+		return super.findList(entity);
+	}
+
+	/**
 	 * 分页查询数据
 	 */
 	@Override
@@ -131,7 +139,7 @@ public class EmpUserServiceSupport extends CrudService<EmpUserDao, EmpUser>
 			// 如果没有设置用户编码，则根据登录名生成一个
 			if (StringUtils.isBlank(user.getUserCode())){
 				userService.genId(user, user.getLoginCode());
-				user.setUserCode(user.getUserCode()+"_"+IdGen.randomBase62(4).toLowerCase());
+				user.setUserCode(user.getUserCode()+"_"+IdGen.randomShortString());
 			}
 			user.setUserType(EmpUser.USER_TYPE_EMPLOYEE);
 			user.setMgrType(EmpUser.MGR_TYPE_NOT_ADMIN);

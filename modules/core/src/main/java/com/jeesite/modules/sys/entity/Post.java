@@ -35,6 +35,7 @@ public class Post extends DataEntity<Post> {
 	private Integer postSort;		// 岗位排序（升序）
 	
 	private String empCode; 		// 根据用户查询岗位
+	private String userCode;		// 根据用户编码查询
 
 	private String roleCodes;		// 关联的角色编号
 	private String roleNames;		// 关联的角色名称
@@ -64,7 +65,15 @@ public class Post extends DataEntity<Post> {
 	public void setViewCode(String viewCode) {
 		this.viewCode = viewCode;
 	}
-	
+
+	public String getViewCode_like() {
+		return sqlMap().getWhere().getValue("view_code", QueryType.LIKE);
+	}
+
+	public void setViewCode_like(String viewCode) {
+		sqlMap().getWhere().and("view_code", QueryType.LIKE, viewCode);
+	}
+
 	@NotBlank(message="岗位名称不能为空")
 	@Size(min=0, max=100, message="岗位名称长度不能超过 100 个字符")
 	public String getPostName() {
@@ -110,6 +119,16 @@ public class Post extends DataEntity<Post> {
 		this.empCode = empCode;
 	}
 
+	@ApiModelProperty("根据用户编码查询")
+	public String getUserCode() {
+		return userCode;
+	}
+
+	public void setUserCode(String userCode) {
+		this.userCode = userCode;
+	}
+
+	@ApiModelProperty("岗位绑定角色编码")
 	public String getRoleCodes() {
 		return roleCodes;
 	}

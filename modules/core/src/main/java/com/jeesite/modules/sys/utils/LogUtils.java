@@ -117,8 +117,7 @@ public class LogUtils {
         Object targetData = request.getAttribute(WebDataBinder.class.getName()+".TARGET");
 
 		// 异步保存日志
-		logThreadPool.submit(new SaveLogThread(log, handler, request.getContextPath(),
-				throwable, sourceData, targetData));
+		logThreadPool.submit(new SaveLogThread(log, handler, Global.getCtxPath(), throwable, sourceData, targetData));
 	}
 	/**
 	 * 保存日志线程
@@ -203,10 +202,10 @@ public class LogUtils {
 				if (StringUtils.startsWith(href, contextPath)){
 					href = StringUtils.substringAfter(href, contextPath);
 				}
-				if (StringUtils.startsWith(href, Global.getAdminPath())){
+				if (StringUtils.startsWith(href, Global.getAdminPath() + "/")){
 					href = StringUtils.substringAfter(href, Global.getAdminPath());
 				}
-				if (StringUtils.startsWith(href, Global.getFrontPath())){
+				if (StringUtils.startsWith(href, Global.getFrontPath() + "/")){
 					href = StringUtils.substringAfter(href, Global.getFrontPath());
 				}
 				log.setLogTitle(Static.menuService.getMenuNamePath(href, permission));

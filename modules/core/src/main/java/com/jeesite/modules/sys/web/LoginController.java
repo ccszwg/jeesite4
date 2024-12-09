@@ -5,6 +5,8 @@
 package com.jeesite.modules.sys.web;
 
 import com.fasterxml.jackson.annotation.JsonView;
+import com.jeesite.common.codec.EncodeUtils;
+import com.jeesite.common.collect.ListUtils;
 import com.jeesite.common.config.Global;
 import com.jeesite.common.lang.StringUtils;
 import com.jeesite.common.shiro.filter.FormFilter;
@@ -14,7 +16,10 @@ import com.jeesite.common.web.BaseController;
 import com.jeesite.common.web.CookieUtils;
 import com.jeesite.common.web.http.ServletUtils;
 import com.jeesite.modules.sys.entity.Menu;
+import com.jeesite.modules.sys.entity.PostRole;
+import com.jeesite.modules.sys.entity.Role;
 import com.jeesite.modules.sys.entity.User;
+import com.jeesite.modules.sys.service.PostService;
 import com.jeesite.modules.sys.utils.PwdUtils;
 import com.jeesite.modules.sys.utils.UserUtils;
 import io.swagger.annotations.Api;
@@ -24,6 +29,7 @@ import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.apache.shiro.session.Session;
 import org.apache.shiro.subject.Subject;
 import org.apache.shiro.web.util.WebUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -46,7 +52,10 @@ import java.util.Map;
 @RequestMapping(value = "${adminPath}")
 @ConditionalOnProperty(name="user.enabled", havingValue="true", matchIfMissing=true)
 public class LoginController extends BaseController{
-	
+
+	@Autowired
+	private PostService postService;
+
 	/**
 	 * 登录页面
 	 */
@@ -86,7 +95,7 @@ public class LoginController extends BaseController{
 		
 		// API 模式不返回视图页面
 		if (Global.isApiMode()) {
-			return null;
+			return ServletUtils.renderString(response, "Please visit front-end address.");
 		}
 		
 		// 返回指定用户类型的登录页视图
@@ -107,9 +116,8 @@ public class LoginController extends BaseController{
 	 */
 	@RequestMapping(value = "loginFailure")
 	public String loginFailure(HttpServletRequest request, HttpServletResponse response, Model model) {
-		LoginInfo loginInfo = UserUtils.getLoginInfo();
-		
-		// 如果已经登录，则跳转到管理首页
+//		// 如果已经登录，则跳转到管理首页
+//		LoginInfo loginInfo = UserUtils.getLoginInfo();
 //		if(loginInfo != null){ // 注释掉，已经登录的账号，正常返回登录失败信息，方便前端判断。
 //			String queryString = request.getQueryString();
 //			queryString = queryString == null ? "" : "?" + queryString;
@@ -127,7 +135,7 @@ public class LoginController extends BaseController{
 		
 		// API 模式不返回视图页面
 		if (Global.isApiMode()) {
-			return null;
+			return ServletUtils.renderString(response, "Please visit front-end address.");
 		}
 		
 		// 返回指定用户类型的登录页视图
@@ -186,11 +194,8 @@ public class LoginController extends BaseController{
 			return null;
 		}
 
-		// 获取当前会话对象，并返回一些数据
+		// 如果是登录操作，则初始化一些登录参数
 		Session session = UserUtils.getSession();
-		model.addAllAttributes(FormFilter.getLoginSuccessData(user, session));
-
-		// 是否是登录操作
 		boolean isLogin = Global.TRUE.equals(session.getAttribute(BaseAuthorizingRealm.IS_LOGIN_OPER));
 		if (isLogin){
 			// 获取后接着清除，防止下次获取仍然认为是登录状态
@@ -204,6 +209,28 @@ public class LoginController extends BaseController{
 			if (loginInfo.getParam("lang") != null){
 				Global.setLang(loginInfo.getParam("lang"), request, response);
 			}
+			// 根据当前用户子系统，切换到默认系统下
+			for(Role role : user.getRoleList()) {
+				if (role.getSysCodes() != null) {
+					String sysCode = null;
+					for (String code : StringUtils.splitComma(role.getSysCodes())) {
+						if (StringUtils.isNotBlank(code)) {
+							sysCode = code;
+							break;
+						}
+					}
+					if (sysCode != null) {
+						session.setAttribute("sysCode", sysCode);
+						UserUtils.removeCache(UserUtils.CACHE_AUTH_INFO+"_"+session.getId());
+						break;
+					}
+				}
+			}
+		}
+
+		// 获取当前会话对象，并返回一些数据
+		if (!StringUtils.equals(request.getParameter("__be"), Global.YES)) {
+			model.addAllAttributes(FormFilter.getLoginSuccessData(request, response, user, session));
 		}
 
 		// 获取登录成功后跳转的页面
@@ -211,14 +238,8 @@ public class LoginController extends BaseController{
 		if (StringUtils.isBlank(successUrl)){
 			successUrl = (String)request.getAttribute("__url");
 		}
-		if (StringUtils.contains(successUrl, "://")){
-			String domain = ServletUtils.getRequestDomain(successUrl);
-			successUrl = StringUtils.substring(successUrl, domain.length());
-			if (StringUtils.startsWith(successUrl, request.getContextPath())) {
-				successUrl = StringUtils.substringAfter(successUrl, request.getContextPath());
-			}
-		}
-		if (StringUtils.isBlank(successUrl)){
+		// 登录后重定向地址验证，如果是非法地址，则指定默认的登录成功地址
+		if (!ServletUtils.isAllowRedirects(request, successUrl) || StringUtils.isBlank(successUrl)){
 			successUrl = Global.getProperty("shiro.successUrl");
 		}
 		
@@ -233,7 +254,7 @@ public class LoginController extends BaseController{
 			}
 			model.addAttribute("sessionid", (String)session.getId());
 			if (!StringUtils.contains(successUrl, "://")){
-				successUrl = request.getContextPath() + successUrl;
+				successUrl = Global.getCtxPath() + successUrl;
 			}
 			model.addAttribute("__url", successUrl); // 告诉浏览器登录后跳转的页面
 			// 初始密码策略和密码修改策略验证（0：关闭；1：提醒用户；2：强制修改初始或旧密码）
@@ -244,6 +265,11 @@ public class LoginController extends BaseController{
 		// 如果是登录操作，则跳转到登录成功页
 		else if (isLogin){
 			return REDIRECT + successUrl;
+		}
+
+		// API 模式不返回视图页面
+		if (Global.isApiMode()) {
+			return ServletUtils.renderString(response, "Please visit front-end address.");
 		}
 		
 		// 是否允许刷新主页，如果已登录，再次访问主页，则退出原账号。
@@ -281,11 +307,6 @@ public class LoginController extends BaseController{
 		//String roleCode = "dept";
 		//session.setAttribute("roleCode", roleCode);
 		//UserUtils.removeCache(UserUtils.CACHE_AUTH_INFO+"_"+session.getId());
-		
-		// API 模式不返回视图页面
-		if (Global.isApiMode()) {
-			return null;
-		}
 		
 		// 返回指定用户类型的首页视图
 		String userType = user.getUserType();
@@ -342,34 +363,76 @@ public class LoginController extends BaseController{
 	}
 
 	/**
-	 * 切换系统菜单（仅超级管理员有权限）
+	 * 切换系统菜单（菜单归属子系统）
 	 */
 	@RequiresPermissions("user")
 	@RequestMapping(value = "switch/{sysCode}")
-	public String switchSys(@PathVariable String sysCode) {
+	public String switchSys(@PathVariable String sysCode, HttpServletRequest request) {
 		Session session = UserUtils.getSession();
 		if (StringUtils.isNotBlank(sysCode)){
-			session.setAttribute("sysCode", sysCode);
+			session.setAttribute("sysCode", sysCode); // 5.4.0+ 支持多个，逗号隔开
 		}else{
 			session.removeAttribute("sysCode");
 		}
+		// 切换系统时，清除当前岗位和角色状态
+		session.removeAttribute("postCode");
+		session.removeAttribute("roleCode");
 		UserUtils.removeCache(UserUtils.CACHE_AUTH_INFO+"_"+session.getId());
+		if (ServletUtils.isAjaxRequest(request)) {
+			return renderResult(Global.TRUE, text("子系统切换成功"));
+		}
 		return REDIRECT + adminPath + "/index";
 	}
 
 	/**
-	 * 切换角色菜单（仅超级管理员有权限）
+	 * 切换角色菜单（用户->角色）
 	 */
 	@RequiresPermissions("user")
 	@RequestMapping(value = {"switchRole","switchRole/{roleCode}"})
-	public String switchRole(@PathVariable(required=false) String roleCode) {
+	public String switchRole(@PathVariable(required=false) String roleCode, HttpServletRequest request) {
 		Session session = UserUtils.getSession();
 		if (StringUtils.isNotBlank(roleCode)){
-			session.setAttribute("roleCode", roleCode);
+			session.setAttribute("roleCode", roleCode); // 5.4.0+ 支持多个，逗号隔开
 		}else{
 			session.removeAttribute("roleCode");
 		}
 		UserUtils.removeCache(UserUtils.CACHE_AUTH_INFO+"_"+session.getId());
+		if (ServletUtils.isAjaxRequest(request)) {
+			return renderResult(Global.TRUE, text("角色切换成功"));
+		}
+		return REDIRECT + adminPath + "/index";
+	}
+
+	/**
+	 * 切换岗位菜单（用户->岗位->角色）v4.9.2
+	 */
+	@RequiresPermissions("user")
+	@RequestMapping(value = {"switchPost","switchPost/{postCode}"})
+	public String switchPost(@PathVariable(required=false) String postCode, HttpServletRequest request) {
+		Session session = UserUtils.getSession();
+		if (StringUtils.isNotBlank(postCode)){
+			PostRole where = new PostRole();
+			where.setPostCode(postCode);
+			where.sqlMap().loadJoinTableAlias("r");
+			List<String> roleCodes = ListUtils.newArrayList();
+			postService.findPostRoleList(where).forEach(e -> {
+				if (e.getRole() != null && PostRole.STATUS_NORMAL.equals(e.getRole().getStatus())) {
+					roleCodes.add(e.getRoleCode());
+				}
+			});
+			if (roleCodes.isEmpty()){
+				roleCodes.add("__none__");
+			}
+			session.setAttribute("postCode", postCode);
+			session.setAttribute("roleCode", StringUtils.joinComma(roleCodes)); // 5.4.0+ 支持多个，逗号隔开
+		}else{
+			session.removeAttribute("postCode");
+			session.removeAttribute("roleCode");
+		}
+		UserUtils.removeCache(UserUtils.CACHE_AUTH_INFO+"_"+session.getId());
+		if (ServletUtils.isAjaxRequest(request)) {
+			return renderResult(Global.TRUE, text("岗位切换成功"));
+		}
 		return REDIRECT + adminPath + "/index";
 	}
 	
@@ -380,7 +443,7 @@ public class LoginController extends BaseController{
 	@RequestMapping(value = "switchSkin/{skinName}")
 	public String switchSkin(@PathVariable String skinName, HttpServletRequest request, HttpServletResponse response) {
 		if (StringUtils.isNotBlank(skinName) && !"select".equals(skinName)){
-			CookieUtils.setCookie(response, "skinName", skinName);
+			CookieUtils.setCookie(response, "skinName", EncodeUtils.encodeUrl(EncodeUtils.xssFilter(skinName, request)));
 			if (ServletUtils.isAjaxRequest(request)) {
 				return renderResult(response, Global.TRUE, text("主题切换成功"));
 			}

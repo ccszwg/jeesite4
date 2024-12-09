@@ -4,11 +4,18 @@
  */
 package com.jeesite.modules.sys.web;
 
-import java.util.List;
-import java.util.Map;
-
-import javax.servlet.http.HttpServletResponse;
-
+import com.jeesite.common.collect.ListUtils;
+import com.jeesite.common.collect.MapUtils;
+import com.jeesite.common.config.Global;
+import com.jeesite.common.idgen.IdGen;
+import com.jeesite.common.lang.DateUtils;
+import com.jeesite.common.lang.StringUtils;
+import com.jeesite.common.utils.excel.ExcelExport;
+import com.jeesite.common.utils.excel.annotation.ExcelField.Type;
+import com.jeesite.common.web.BaseController;
+import com.jeesite.modules.sys.entity.Office;
+import com.jeesite.modules.sys.service.OfficeService;
+import com.jeesite.modules.sys.web.user.EmpUserController;
 import io.swagger.annotations.Api;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,19 +29,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.jeesite.common.collect.ListUtils;
-import com.jeesite.common.collect.MapUtils;
-import com.jeesite.common.config.Global;
-import com.jeesite.common.idgen.IdGen;
-import com.jeesite.common.lang.DateUtils;
-import com.jeesite.common.lang.StringUtils;
-import com.jeesite.common.utils.excel.ExcelExport;
-import com.jeesite.common.utils.excel.annotation.ExcelField.Type;
-import com.jeesite.common.web.BaseController;
-import com.jeesite.modules.sys.entity.Office;
-import com.jeesite.modules.sys.service.OfficeService;
-import com.jeesite.modules.sys.utils.UserUtils;
-import com.jeesite.modules.sys.web.user.EmpUserController;
+import javax.servlet.http.HttpServletResponse;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 机构Controller
@@ -335,9 +332,9 @@ public class OfficeController extends BaseController {
 			mapList.add(map);
 		}
 		// 一次性后台加载用户，若数据量比较大，建议使用懒加载
-		if (StringUtils.equals(isLoadUser, "true") && idList.size() > 0) {
+		if (StringUtils.equals(isLoadUser, "true") && !idList.isEmpty()) {
 			List<Map<String, Object>> userList = 
-				empUserController.treeData(userIdPrefix, idList.toArray(new String[idList.size()]), 
+				empUserController.treeData(userIdPrefix, idList.toArray(new String[0]),
 						companyCode, postCode, roleCode, isAll, isShowCode, ctrlPermi);
 			mapList.addAll(userList);
 		}
@@ -354,8 +351,8 @@ public class OfficeController extends BaseController {
 	@RequiresPermissions("sys:office:edit")
 	@RequestMapping(value = "fixTreeData")
 	@ResponseBody
-	public String fixTreeData() {
-		if (!UserUtils.getUser().isAdmin()){
+	public String fixTreeData(Office office) {
+		if (!office.currentUser().isAdmin()){
 			return renderResult(Global.FALSE, text("操作失败，只有管理员才能进行修复！"));
 		}
 		officeService.fixTreeData();

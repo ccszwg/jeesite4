@@ -3,7 +3,7 @@
      No deletion without permission, or be held responsible to law. -->
 <template>
 	<name>viewList</name>
-	<filePath>${frontDir}/src/main/resources/views/${lastPackageName}/${moduleName}/${subModuleName}</filePath>
+	<filePath>${baseDir}/src/main/resources/views/${lastPackageName}/${moduleName}/${subModuleName}</filePath>
 	<fileName>${className}List.html</fileName>
 	<content><![CDATA[
 \<% layout('/layouts/default.html', {title: '${functionNameSimple}查询', libs: ['dataGrid']}){ %>
@@ -24,7 +24,7 @@
 			</div>
 		</div>
 		<div class="box-body">
-			<% include('/templates/modules/gen/include/searchForm.html'){} %>
+			<% include('/templates/modules/gen/view/searchForm.html'){} %>
 			<table id="dataGrid"></table>
 			<% if(!table.isTreeEntity){ %>
 			<div id="dataGridPage"></div>
@@ -33,6 +33,6 @@
 	</div>
 </div>
 \<% } %>
-<% include('/templates/modules/gen/include/dataGridScript.html'){} %>]]>
+<% include('/templates/modules/gen/view/dataGridScript.html'){} %>]]>
 	</content>
 </template>

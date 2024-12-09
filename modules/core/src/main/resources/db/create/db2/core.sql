@@ -79,6 +79,31 @@ CREATE TABLE ${_prefix}sys_area
 );
 
 
+-- 业务分类
+CREATE TABLE ${_prefix}biz_category
+(
+	category_code varchar(64) NOT NULL,
+	view_code varchar(500),
+	category_name varchar(64) NOT NULL,
+	parent_code varchar(64) NOT NULL,
+	parent_codes varchar(767) NOT NULL,
+	tree_sort decimal(10) NOT NULL,
+	tree_sorts varchar(767) NOT NULL,
+	tree_leaf char(1) NOT NULL,
+	tree_level decimal(4) NOT NULL,
+	tree_names varchar(767) NOT NULL,
+	status char(1) DEFAULT '0' NOT NULL,
+	create_by varchar(64) NOT NULL,
+	create_date timestamp NOT NULL,
+	update_by varchar(64) NOT NULL,
+	update_date timestamp NOT NULL,
+	remarks vargraphic(500),
+	corp_code varchar(64) DEFAULT '0' NOT NULL,
+	corp_name vargraphic(100) DEFAULT 'JeeSite' NOT NULL,
+	PRIMARY KEY (category_code)
+);
+
+
 -- 公司表
 CREATE TABLE ${_prefix}sys_company
 (
@@ -165,7 +190,7 @@ CREATE TABLE ${_prefix}sys_dict_data
 	tree_leaf char(1) NOT NULL,
 	tree_level decimal(4) NOT NULL,
 	tree_names varchar(767) NOT NULL,
-	dict_value varchar(100) NOT NULL,
+	dict_value varchar(500) NOT NULL,
 	dict_icon varchar(100),
 	dict_type varchar(100) NOT NULL,
 	is_sys char(1) NOT NULL,
@@ -476,6 +501,8 @@ CREATE TABLE ${_prefix}sys_module
 	main_class_name varchar(500),
 	current_version varchar(50),
 	upgrade_info varchar(300),
+	gen_base_dir vargraphic(1000),
+	tpl_category varchar(200),
 	status char(1) DEFAULT '0' NOT NULL,
 	create_by varchar(64) NOT NULL,
 	create_date timestamp NOT NULL,

@@ -14,6 +14,7 @@ import com.jeesite.common.mapper.JsonMapper;
 import com.jeesite.common.mapper.XmlMapper;
 import org.apache.commons.lang3.Validate;
 import org.springframework.http.MediaType;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -56,7 +57,12 @@ public class ServletUtils {
 	
 	// 是否打印错误信息参数到视图页面（生产环境关闭）
 	private static final Boolean PRINT_ERROR_INFO = PROPS.getPropertyToBoolean("error.page.printErrorInfo", "true");
-	
+
+	// 允许重定向的地址，不设置为全部允许，设置this只允许本项目内部跳转，多个用逗号隔开，例如：this,http://*.jeesite.com
+	private static final String[] ALLOW_REDIRECTS = PROPS.getPropertyToArray("shiro.allowRedirects", "");
+	private static final Boolean SCHEME_HTTPS = PROPS.getPropertyToBoolean("server.schemeHttps", "false");
+	private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
+
 	/**
 	 * 获取当前请求对象
 	 * web.xml: <listener><listener-class>
@@ -64,13 +70,8 @@ public class ServletUtils {
 	 * 	</listener-class></listener>
 	 */
 	public static HttpServletRequest getRequest(){
-		HttpServletRequest request = null;
 		try{
-			request = ((ServletRequestAttributes)RequestContextHolder.currentRequestAttributes()).getRequest();
-			if (request == null){
-				return null;
-			}
-			return request;
+			return ((ServletRequestAttributes)RequestContextHolder.currentRequestAttributes()).getRequest();
 		}catch(Exception e){
 			return null;
 		}
@@ -83,16 +84,11 @@ public class ServletUtils {
 	 * 	<filter-name>requestContextFilter</filter-name><url-pattern>/*</url-pattern></filter-mapping>
 	 */
 	public static HttpServletResponse getResponse(){
-		HttpServletResponse response = null;
 		try{
-			response = ((ServletRequestAttributes)RequestContextHolder.currentRequestAttributes()).getResponse();
-			if (response == null){
-				return null;
-			}
+			return ((ServletRequestAttributes)RequestContextHolder.currentRequestAttributes()).getResponse();
 		}catch(Exception e){
 			return null;
 		}
-		return response;
 	}
 	
 	/**
@@ -106,7 +102,8 @@ public class ServletUtils {
 				if (StringUtils.contains(url, "://")){
 					response.sendRedirect(url);
 				}else{
-					response.sendRedirect(request.getContextPath() + url);
+					String ctxPath = PropertiesUtils.getInstance().getProperty("ctxPath", request.getContextPath());
+					response.sendRedirect(ctxPath + url);
 				}
 			}
 		} catch (Exception e) {
@@ -121,9 +118,8 @@ public class ServletUtils {
 	public static boolean isStaticFile(String uri){
 		if (STATIC_FILE == null){
 			try {
-				throw new Exception("检测到“jeesite.yml”中没有配置“web.staticFile”属性。"
-						+ "配置示例：\n#静态文件后缀\nweb.staticFile=.css,.js,.png,.jpg,.gif,"
-						+ ".jpeg,.bmp,.ico,.swf,.psd,.htc,.crx,.xpi,.exe,.ipa,.apk");
+				throw new Exception("检测到“application.yml”中没有配置“web.staticFile”属性。配置示例：\n#静态文件后缀\nweb.staticFile=" +
+						".css,.js,.map,.png,.jpg,.gif,.jpeg,.webp,.bmp,.ico,.swf,.psd,.htc,.crx,.xpi,.exe,.ipa,.apk,.otf,.eot,.svg,.ttf,.woff,.woff2");
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -257,6 +253,7 @@ public class ServletUtils {
 		if (object == null) {
 			object = resultMap;
 		}
+		object = ResultUtils.result(object, request, response);
 		if (jsonView != null) {
 			return JsonMapper.toJson(object, jsonView);
 		}else {
@@ -330,6 +327,7 @@ public class ServletUtils {
 				object = new JSONPObject(functionName, object);
 			}
 		}
+		object = ResultUtils.result(object, request, response);
 		if (jsonView != null) {
 			return renderString(response, JsonMapper.toJson(object, jsonView));
 		}else {
@@ -357,18 +355,7 @@ public class ServletUtils {
 		try {
 //			response.reset(); // 注释掉，否则以前设置的Header会被清理掉，如ajax登录设置记住我的Cookie信息
 			if (type == null && StringUtils.isBlank(response.getContentType())){
-				if ((StringUtils.startsWith(string, "{") && StringUtils.endsWith(string, "}"))
-						|| (StringUtils.startsWith(string, "[") && StringUtils.endsWith(string, "]"))){
-					type = MediaType.APPLICATION_JSON_VALUE;
-				}else if (StringUtils.startsWith(string, "<") && StringUtils.endsWith(string, ">")){
-					if (StringUtils.startsWith(string, "<!DOCTYPE")){
-						type = MediaType.TEXT_HTML_VALUE;
-					}else{
-						type = MediaType.APPLICATION_XML_VALUE;
-					}
-				}else{
-					type = MediaType.TEXT_PLAIN_VALUE;
-				}
+				type = getContentType(string);
 			}
 			if (type != null) {
 				response.setContentType(type);
@@ -382,15 +369,63 @@ public class ServletUtils {
 	}
 
 	/**
-	 * 获取请求的域名（含端口）
+	 * 根据内容判断相应类型 MediaType
+	 * @return application/json、text/html、application/xml、text/plain
 	 */
-	public static String getRequestDomain(String url) {
+	public static String getContentType(String string) {
+		String type;
+		if ((StringUtils.startsWith(string, "{") && StringUtils.endsWith(string, "}"))
+				|| (StringUtils.startsWith(string, "[") && StringUtils.endsWith(string, "]"))){
+			type = MediaType.APPLICATION_JSON_VALUE;
+		}else if (StringUtils.startsWith(string, "<") && StringUtils.endsWith(string, ">")){
+			if (StringUtils.startsWith(string, "<!DOCTYPE")){
+				type = MediaType.TEXT_HTML_VALUE;
+			}else{
+				type = MediaType.APPLICATION_XML_VALUE;
+			}
+		}else{
+			type = MediaType.TEXT_PLAIN_VALUE;
+		}
+		return type;
+	}
+
+	/**
+	 * 获取当前请求的域名（含端口）
+	 * @author ThinkGem
+	 */
+	public static String getThisDomain(HttpServletRequest request) {
+        String url = request.getRequestURL().toString();
 		String scheme = StringUtils.substringBefore(url, "://");
+		if (SCHEME_HTTPS && StringUtils.equals(scheme, "http")) {
+            scheme = "https";
+        }
 		String domain = StringUtils.substringAfter(url, "://");
 		if (StringUtils.contains(domain, "/")) {
 			domain = StringUtils.substringBefore(domain, "/");
 		}
 		return scheme + "://" + domain;
+	}
+
+	/**
+	 * 验证地址是否允许重定向
+	 * @author ThinkGem
+	 */
+	public static boolean isAllowRedirects(HttpServletRequest request, String url) {
+		if (ALLOW_REDIRECTS == null || ALLOW_REDIRECTS.length == 0) {
+			return true;
+		}
+		boolean allow = false;
+		for (String pattern : ALLOW_REDIRECTS) {
+			String p = StringUtils.trim(pattern);
+			if ("this".equals(p)) {
+				p = getThisDomain(request);
+			}
+			if (PATH_MATCHER.match(p + "/**", url)){
+				allow = true;
+				break;
+			}
+		}
+		return allow;
 	}
 
 	/**

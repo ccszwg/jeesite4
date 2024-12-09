@@ -7,6 +7,7 @@ package com.jeesite.autoconfigure.core;
 import com.jeesite.common.collect.ListUtils;
 import com.jeesite.common.config.Global;
 import com.jeesite.common.shiro.cas.CasOutHandler;
+import com.jeesite.common.shiro.cas.CasSubjectFactory;
 import com.jeesite.common.shiro.config.FilterChainDefinitionMap;
 import com.jeesite.common.shiro.filter.*;
 import com.jeesite.common.shiro.realm.AuthorizingRealm;
@@ -17,7 +18,6 @@ import com.jeesite.common.shiro.session.SessionManager;
 import com.jeesite.common.shiro.web.ShiroFilterFactoryBean;
 import com.jeesite.common.shiro.web.WebSecurityManager;
 import org.apache.shiro.cache.CacheManager;
-import org.apache.shiro.cas.CasSubjectFactory;
 import org.apache.shiro.realm.Realm;
 import org.apache.shiro.realm.ldap.JndiLdapContextFactory;
 import org.apache.shiro.spring.LifecycleBeanPostProcessor;
@@ -55,9 +55,9 @@ public class ShiroAutoConfiguration {
 	@ConditionalOnMissingBean(name="shiroFilterProxy")
 	public FilterRegistrationBean<Filter> shiroFilterProxy(ShiroFilterFactoryBean shiroFilter) throws Exception {
 		FilterRegistrationBean<Filter> bean = new FilterRegistrationBean<>();
+		bean.setOrder(Ordered.HIGHEST_PRECEDENCE + 5000);
 		bean.setFilter(shiroFilter.getObject());
 		bean.addUrlPatterns("/*");
-		bean.setOrder(Ordered.HIGHEST_PRECEDENCE + 5000);
 		return bean;
 	}
 

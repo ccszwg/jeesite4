@@ -79,6 +79,31 @@ CREATE TABLE js_sys_area
 );
 
 
+-- 业务分类
+CREATE TABLE js_biz_category
+(
+	category_code varchar2(64) NOT NULL,
+	view_code varchar2(500),
+	category_name varchar2(64) NOT NULL,
+	parent_code varchar2(64) NOT NULL,
+	parent_codes varchar2(767) NOT NULL,
+	tree_sort number(10) NOT NULL,
+	tree_sorts varchar2(767) NOT NULL,
+	tree_leaf char(1) NOT NULL,
+	tree_level number(4) NOT NULL,
+	tree_names varchar2(767) NOT NULL,
+	status char(1) DEFAULT '0' NOT NULL,
+	create_by varchar2(64) NOT NULL,
+	create_date timestamp NOT NULL,
+	update_by varchar2(64) NOT NULL,
+	update_date timestamp NOT NULL,
+	remarks nvarchar2(500),
+	corp_code varchar2(64) DEFAULT '0' NOT NULL,
+	corp_name nvarchar2(100) DEFAULT 'JeeSite' NOT NULL,
+	PRIMARY KEY (category_code)
+);
+
+
 -- 公司表
 CREATE TABLE js_sys_company
 (
@@ -165,7 +190,7 @@ CREATE TABLE js_sys_dict_data
 	tree_leaf char(1) NOT NULL,
 	tree_level number(4) NOT NULL,
 	tree_names varchar2(767) NOT NULL,
-	dict_value varchar2(100) NOT NULL,
+	dict_value varchar2(500) NOT NULL,
 	dict_icon varchar2(100),
 	dict_type varchar2(100) NOT NULL,
 	is_sys char(1) NOT NULL,
@@ -476,6 +501,8 @@ CREATE TABLE js_sys_module
 	main_class_name varchar2(500),
 	current_version varchar2(50),
 	upgrade_info varchar2(300),
+	gen_base_dir nvarchar2(1000),
+	tpl_category varchar2(200),
 	status char(1) DEFAULT '0' NOT NULL,
 	create_by varchar2(64) NOT NULL,
 	create_date timestamp NOT NULL,
@@ -1031,6 +1058,25 @@ COMMENT ON COLUMN js_sys_area.create_date IS '创建时间';
 COMMENT ON COLUMN js_sys_area.update_by IS '更新者';
 COMMENT ON COLUMN js_sys_area.update_date IS '更新时间';
 COMMENT ON COLUMN js_sys_area.remarks IS '备注信息';
+COMMENT ON TABLE js_biz_category IS '业务分类';
+COMMENT ON COLUMN js_biz_category.category_code IS '流程分类';
+COMMENT ON COLUMN js_biz_category.view_code IS '分类代码';
+COMMENT ON COLUMN js_biz_category.category_name IS '分类名称';
+COMMENT ON COLUMN js_biz_category.parent_code IS '父级编号';
+COMMENT ON COLUMN js_biz_category.parent_codes IS '所有父级编号';
+COMMENT ON COLUMN js_biz_category.tree_sort IS '排序号（升序）';
+COMMENT ON COLUMN js_biz_category.tree_sorts IS '所有排序号';
+COMMENT ON COLUMN js_biz_category.tree_leaf IS '是否最末级';
+COMMENT ON COLUMN js_biz_category.tree_level IS '层次级别';
+COMMENT ON COLUMN js_biz_category.tree_names IS '全节点名';
+COMMENT ON COLUMN js_biz_category.status IS '状态（0正常 1删除 2停用）';
+COMMENT ON COLUMN js_biz_category.create_by IS '创建者';
+COMMENT ON COLUMN js_biz_category.create_date IS '创建时间';
+COMMENT ON COLUMN js_biz_category.update_by IS '更新者';
+COMMENT ON COLUMN js_biz_category.update_date IS '更新时间';
+COMMENT ON COLUMN js_biz_category.remarks IS '备注信息';
+COMMENT ON COLUMN js_biz_category.corp_code IS '租户代码';
+COMMENT ON COLUMN js_biz_category.corp_name IS '租户名称';
 COMMENT ON TABLE js_sys_company IS '公司表';
 COMMENT ON COLUMN js_sys_company.company_code IS '公司编码';
 COMMENT ON COLUMN js_sys_company.view_code IS '公司代码';
@@ -1336,6 +1382,8 @@ COMMENT ON COLUMN js_sys_module.description IS '模块描述';
 COMMENT ON COLUMN js_sys_module.main_class_name IS '主类全名';
 COMMENT ON COLUMN js_sys_module.current_version IS '当前版本';
 COMMENT ON COLUMN js_sys_module.upgrade_info IS '升级信息';
+COMMENT ON COLUMN js_sys_module.gen_base_dir IS '生成基础路径';
+COMMENT ON COLUMN js_sys_module.tpl_category IS '使用的模板';
 COMMENT ON COLUMN js_sys_module.status IS '状态（0正常 1删除 2停用）';
 COMMENT ON COLUMN js_sys_module.create_by IS '创建者';
 COMMENT ON COLUMN js_sys_module.create_date IS '创建时间';
